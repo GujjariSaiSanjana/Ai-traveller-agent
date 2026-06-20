@@ -1,121 +1,166 @@
-'use client';
 import Link from 'next/link';
+import { Navbar } from '@/components/navbar';
+import { Container } from '@/components/ui/container';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const features = [
-  { icon: '🤖', title: 'AI-Powered Itineraries', desc: 'Gemini AI builds a day-by-day plan tailored to your budget and interests in seconds.' },
-  { icon: '🏨', title: 'Hotel Recommendations', desc: 'Curated hotel picks with tier, rating, and estimated nightly cost for every trip.' },
-  { icon: '💰', title: 'Budget Breakdown', desc: 'Transparent cost estimates across transport, accommodation, food, and activities.' },
-  { icon: '🎒', title: 'Smart Packing List', desc: 'Auto-generated, categorised packing lists you can check off as you pack.' },
+  { k: '01', title: 'AI itineraries', desc: 'A day-by-day plan shaped to your budget tier and interests — generated in seconds.' },
+  { k: '02', title: 'Hotel picks', desc: 'Curated stays with tier, rating and nightly cost for every destination.' },
+  { k: '03', title: 'Honest budgets', desc: 'A transparent breakdown across transport, stays, food and activities.' },
+  { k: '04', title: 'Weather-aware packing', desc: 'A checklist tuned to the local climate and the activities you scheduled.' },
 ];
 
 const steps = [
-  { num: '01', title: 'Create an account', desc: 'Sign up in seconds — no credit card required.' },
-  { num: '02', title: 'Describe your trip', desc: 'Enter your destination, duration, budget tier and interests.' },
-  { num: '03', title: 'Get your itinerary', desc: 'AI generates a full plan with hotels, activities and budget in under 10 seconds.' },
+  { num: '01', title: 'Create an account', desc: 'Sign up in seconds — your trips stay private to you.' },
+  { num: '02', title: 'Describe your trip', desc: 'Destination, duration, budget tier and interests.' },
+  { num: '03', title: 'Get your plan', desc: 'A full itinerary, hotels, budget and packing list — instantly.' },
+];
+
+const previewDay = [
+  { icon: '🌅', name: 'Sensō-ji Temple', cost: 'Free' },
+  { icon: '☀️', name: 'Asakusa street food', cost: '$18' },
+  { icon: '🌙', name: 'Tokyo Skytree at dusk', cost: '$22' },
 ];
 
 export default function LandingPage() {
   return (
-    <div style={{ background: 'var(--gradient-hero)', minHeight: '100vh' }}>
-
-      {/* Navbar */}
-      <nav className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 1200, margin: '0 auto' }}>
-          <span style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-            <span className="gradient-text">Wander</span><span style={{ color: 'var(--text-primary)' }}>AI</span>
-          </span>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <Link href="/login">
-              <button className="btn-secondary" style={{ padding: '8px 20px' }}>Log in</button>
+    <div className="min-h-screen">
+      <Navbar
+        right={
+          <>
+            <Link href="/login" className="hidden sm:block">
+              <Button variant="ghost" size="sm">Log in</Button>
             </Link>
             <Link href="/register">
-              <button className="btn-primary" style={{ padding: '8px 20px' }}>Get started</button>
+              <Button size="sm">Get started</Button>
             </Link>
-          </div>
-        </div>
-      </nav>
+          </>
+        }
+      />
 
-      {/* Hero */}
-      <section style={{ padding: '140px 24px 100px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
-        {/* background blobs */}
-        <div style={{ position: 'absolute', top: '10%', left: '10%', width: 400, height: 400, background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(40px)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: 300, height: 300, background: 'radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(40px)', pointerEvents: 'none' }} />
+      {/* Hero — two columns: copy + product preview */}
+      <section className="relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute -right-32 -top-40 h-[36rem] w-[36rem] rounded-full opacity-20 blur-[120px]"
+          style={{ background: 'radial-gradient(circle, var(--primary), transparent 62%)' }}
+        />
+        <Container className="relative max-w-[1200px] py-20 lg:py-28">
+          <div className="grid items-center gap-14 lg:grid-cols-2">
+            {/* copy */}
+            <div>
+              <p className="animate-fade-up font-display text-xs font-semibold uppercase tracking-[0.22em] text-primary">
+                AI-crafted journeys
+              </p>
+              <h1 className="animate-fade-up mt-5 font-display text-5xl font-bold leading-[1.03] tracking-tight sm:text-6xl">
+                Plan trips worth <em className="italic text-primary">remembering.</em>
+              </h1>
+              <p className="animate-fade-up mt-6 max-w-md text-lg text-muted-foreground">
+                Tell WanderAI where you&apos;re going. Get a day-by-day itinerary, a realistic budget, hand-picked stays and a packing list that actually knows the weather.
+              </p>
+              <div className="animate-fade-up mt-9 flex flex-wrap gap-3">
+                <Link href="/register"><Button size="lg">Plan a new trip →</Button></Link>
+                <Link href="/login"><Button size="lg" variant="outline">Sign in</Button></Link>
+              </div>
+            </div>
 
-        <div className="animate-fade-in" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="badge badge-purple" style={{ marginBottom: 20, display: 'inline-flex' }}>✨ Powered by Gemini AI</span>
-          <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: 24 }}>
-            Plan your dream trip<br />
-            <span className="gradient-text">in under 10 seconds</span>
-          </h1>
-          <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: 560, margin: '0 auto 40px', lineHeight: 1.7 }}>
-            Tell us where you want to go and WanderAI generates a complete day-by-day itinerary, hotel picks, budget breakdown and packing list — instantly.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/register">
-              <button className="btn-primary animate-pulse-glow" style={{ padding: '14px 32px', fontSize: '1.05rem' }}>
-                🚀 Plan my trip for free
-              </button>
-            </Link>
-            <Link href="/login">
-              <button className="btn-secondary" style={{ padding: '14px 32px', fontSize: '1.05rem' }}>
-                Sign in
-              </button>
-            </Link>
+            {/* product preview */}
+            <div className="relative hidden lg:block">
+              <div
+                className="pointer-events-none absolute -inset-8 rounded-[2.5rem] opacity-25 blur-3xl"
+                style={{ background: 'radial-gradient(circle at 70% 30%, var(--primary), transparent 62%)' }}
+              />
+              <Card className="relative p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-display text-xs uppercase tracking-[0.18em] text-primary">Day 1 · Itinerary</p>
+                    <h3 className="mt-1 font-display text-2xl font-semibold tracking-tight">Tokyo, Japan</h3>
+                  </div>
+                  <Badge variant="amber">5 days</Badge>
+                </div>
+                <div className="mt-5 space-y-3">
+                  {previewDay.map((a) => (
+                    <div key={a.name} className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-lg">
+                        {a.icon}
+                      </span>
+                      <span className="flex-1 text-sm font-medium">{a.name}</span>
+                      <span className="text-sm font-semibold text-success">{a.cost}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
+                  <span className="text-sm text-muted-foreground">Est. budget</span>
+                  <span className="font-display text-xl font-semibold text-primary">$1,420</span>
+                </div>
+              </Card>
+              <Card className="absolute -bottom-6 -left-6 flex items-center gap-3 px-4 py-3">
+                <span className="text-lg">⛅</span>
+                <div>
+                  <p className="text-xs font-semibold">Weather-aware packing</p>
+                  <p className="text-xs text-muted-foreground">9 / 15 packed</p>
+                </div>
+              </Card>
+            </div>
           </div>
-        </div>
+          <div className="mt-20 border-t border-border" />
+        </Container>
       </section>
 
-      {/* Features */}
-      <section style={{ padding: '80px 24px', maxWidth: 1100, margin: '0 auto' }}>
-        <h2 style={{ textAlign: 'center', fontSize: '2rem', fontWeight: 700, marginBottom: 48 }}>
-          Everything you need to <span className="gradient-text">travel smarter</span>
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20 }}>
-          {features.map((f) => (
-            <div key={f.title} className="card" style={{ padding: 28 }}>
-              <div style={{ fontSize: '2.4rem', marginBottom: 16 }}>{f.icon}</div>
-              <h3 style={{ fontWeight: 600, marginBottom: 10, fontSize: '1.05rem' }}>{f.title}</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
+      {/* Features — full-width hairline grid */}
+      <section className="py-16">
+        <Container className="max-w-[1200px]">
+          <h2 className="mb-12 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            Everything you need to travel <span className="text-primary">smarter</span>.
+          </h2>
+          <div className="grid gap-x-12 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((f) => (
+              <div key={f.k} className="border-t border-border pt-5">
+                <div className="font-display text-sm font-semibold tabular-nums text-primary/60">{f.k}</div>
+                <h3 className="mt-1 font-display text-xl font-semibold">{f.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
       </section>
 
       {/* How it works */}
-      <section style={{ padding: '80px 24px', maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: 56 }}>
-          How it <span className="gradient-text">works</span>
-        </h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {steps.map((s, i) => (
-            <div key={s.num} className="card glass" style={{ padding: '28px 32px', display: 'flex', alignItems: 'center', gap: 24, textAlign: 'left' }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--accent-primary)', opacity: 0.4, minWidth: 60, fontVariantNumeric: 'tabular-nums' }}>{s.num}</div>
-              <div>
-                <h3 style={{ fontWeight: 600, marginBottom: 6 }}>{s.title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{s.desc}</p>
+      <section className="py-16">
+        <Container className="max-w-[1200px]">
+          <h2 className="mb-12 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            How it <span className="text-primary">works</span>.
+          </h2>
+          <div className="grid gap-12 sm:grid-cols-3">
+            {steps.map((s) => (
+              <div key={s.num} className="border-t border-border pt-5">
+                <div className="font-display text-4xl font-bold tabular-nums text-primary/30">{s.num}</div>
+                <h3 className="mt-3 font-display text-lg font-semibold">{s.title}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">{s.desc}</p>
               </div>
-              {i < steps.length - 1 && <div style={{ marginLeft: 'auto', fontSize: '1.4rem', opacity: 0.3 }}>→</div>}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Container>
       </section>
 
       {/* CTA */}
-      <section style={{ padding: '80px 24px 120px', textAlign: 'center' }}>
-        <div className="card" style={{ maxWidth: 600, margin: '0 auto', padding: '56px 40px', background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.08))' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: 16 }}>Ready to explore the world?</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Join thousands of travellers using WanderAI to plan unforgettable trips.</p>
-          <Link href="/register">
-            <button className="btn-primary" style={{ padding: '14px 36px', fontSize: '1.05rem' }}>
-              🌍 Start planning — it&apos;s free
-            </button>
-          </Link>
-        </div>
+      <section className="pb-28 pt-8">
+        <Container className="max-w-[1200px]">
+          <div className="flex flex-wrap items-center justify-between gap-6 border-t border-border pt-12">
+            <div>
+              <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Ready to explore?</h2>
+              <p className="mt-2 max-w-md text-muted-foreground">Start planning a trip in under a minute. No credit card, no clutter.</p>
+            </div>
+            <Link href="/register"><Button size="lg">Start planning — it&apos;s free</Button></Link>
+          </div>
+        </Container>
       </section>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        © 2026 WanderAI · Built with Next.js &amp; Gemini AI
+      <footer className="border-t border-border py-8">
+        <Container className="max-w-[1200px] text-sm text-muted-foreground">
+          © 2026 WanderAI · Built with Next.js &amp; Gemini AI
+        </Container>
       </footer>
     </div>
   );

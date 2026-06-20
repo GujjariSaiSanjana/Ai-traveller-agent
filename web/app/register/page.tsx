@@ -3,6 +3,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,83 +27,62 @@ export default function RegisterPage() {
     try {
       await authApi.register(form);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--gradient-hero)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ position: 'fixed', top: '30%', right: '20%', width: 500, height: 500, background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(60px)', pointerEvents: 'none' }} />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+      <div className="aurora" />
+      <div className="absolute right-5 top-5"><ThemeToggle /></div>
 
-      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: 440, padding: 40 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🌍</div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: 6 }}>
-            Join <span className="gradient-text">WanderAI</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Start planning amazing trips for free</p>
+      <Card className="animate-fade-up relative w-full max-w-md p-8">
+        <div className="mb-8 text-center">
+          <Link href="/" className="font-display text-2xl font-bold tracking-tight">
+            Wander<span className="text-primary">AI</span>
+          </Link>
+          <h1 className="mt-4 font-display text-2xl font-semibold">Create your account</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Start planning trips for free.</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <label className="label">Full name</label>
-            <input
-              className="input"
-              type="text"
-              placeholder="Your name"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              required
-              autoComplete="name"
-            />
+            <Label htmlFor="name">Full name</Label>
+            <Input id="name" type="text" placeholder="Your name" autoComplete="name" required
+              value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           </div>
           <div>
-            <label className="label">Email address</label>
-            <input
-              className="input"
-              type="email"
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              required
-              autoComplete="email"
-            />
+            <Label htmlFor="email">Email address</Label>
+            <Input id="email" type="email" placeholder="you@example.com" autoComplete="email" required
+              value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
           </div>
           <div>
-            <label className="label">Password <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(min. 6 characters)</span></label>
-            <input
-              className="input"
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              required
-              autoComplete="new-password"
-            />
+            <Label htmlFor="password">
+              Password <span className="font-normal text-muted-foreground">(min. 6 characters)</span>
+            </Label>
+            <Input id="password" type="password" placeholder="••••••••" autoComplete="new-password" required
+              value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
           </div>
 
           {error && (
-            <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, color: '#fca5a5', fontSize: '0.9rem' }}>
-              ⚠️ {error}
-            </div>
+            <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {error}
+            </p>
           )}
 
-          <button className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
-            {loading ? <><span className="spinner" />Creating account…</> : 'Create account →'}
-          </button>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? <><Spinner /> Creating account…</> : 'Create account →'}
+          </Button>
         </form>
 
-        <div className="divider" />
-        <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" style={{ color: '#a5b4fc', fontWeight: 600, textDecoration: 'none' }}>
-            Sign in
-          </Link>
+          <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
         </p>
-      </div>
+      </Card>
     </div>
   );
 }

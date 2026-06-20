@@ -1,27 +1,24 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { tripsApi, type Trip, type PackingItem } from '@/lib/api';
+import { Navbar } from '@/components/navbar';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
+import { Tabs } from '@/components/ui/tabs';
+import { Container } from '@/components/ui/container';
 
-const TIME_COLORS: Record<string, string> = {
-  Morning: '#f59e0b', Afternoon: '#06b6d4', Evening: '#14b8a6',
-};
-const TIME_ICONS: Record<string, string> = {
-  Morning: '🌅', Afternoon: '☀️', Evening: '🌙',
-};
-const CATEGORY_ICONS: Record<string, string> = {
-  Documents: '📄', Clothing: '👕', Gear: '🎒', Other: '📦',
-};
-
-type TabKey = 'itinerary' | 'hotels' | 'budget' | 'packing';
+const TIME_ICON: Record<string, string> = { Morning: '🌅', Afternoon: '☀️', Evening: '🌙' };
+const CAT_ICON: Record<string, string> = { Documents: '📄', Clothing: '👕', Gear: '🎒', Other: '📦' };
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<TabKey>('itinerary');
+  const [tab, setTab] = useState('itinerary');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -30,232 +27,191 @@ export default function TripDetailPage() {
 
   async function togglePacked(idx: number) {
     if (!trip) return;
-    const updated = trip.packingList.map((p, i) => i === idx ? { ...p, isPacked: !p.isPacked } : p);
+    const updated = trip.packingList.map((p, i) => (i === idx ? { ...p, isPacked: !p.isPacked } : p));
     setTrip({ ...trip, packingList: updated });
     setSaving(true);
-    try { await tripsApi.update(id, { packingList: updated }); }
-    finally { setSaving(false); }
+    try { await tripsApi.update(id, { packingList: updated }); } finally { setSaving(false); }
   }
 
-  if (loading) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div className="spinner" style={{ width: 40, height: 40, margin: '0 auto 16px' }} />
-        <p style={{ color: 'var(--text-muted)' }}>Loading itinerary…</p>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <Spinner className="mr-3 text-primary" /> Loading itinerary…
       </div>
-    </div>
-  );
-
+    );
+  }
   if (!trip) return null;
 
-  const packed = trip.packingList.filter(p => p.isPacked).length;
-  const total  = trip.packingList.length;
-  const pct    = total > 0 ? Math.round((packed / total) * 100) : 0;
-
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'itinerary', label: '📅 Itinerary' },
-    { key: 'hotels',    label: '🏨 Hotels' },
-    { key: 'budget',    label: '💰 Budget' },
-    { key: 'packing',   label: `🎒 Packing ${pct}%` },
-  ];
+  const budget = trip.itinerary?.estimatedBudget;
+  const packed = trip.packingList.filter((p) => p.isPacked).length;
+  const total = trip.packingList.length;
+  const pct = total > 0 ? Math.round((packed / total) * 100) : 0;
 
   const byCategory = (trip.packingList ?? []).reduce<Record<string, PackingItem[]>>((acc, item) => {
-    acc[item.category] = acc[item.category] ?? [];
-    acc[item.category].push(item);
+    (acc[item.category] ??= []).push(item);
     return acc;
   }, {});
 
   return (
-    <div style={{ background: 'var(--bg-primary)', minHeight: '100vh' }}>
-      {/* Navbar */}
-      <nav className="navbar">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 1000, margin: '0 auto' }}>
-          <Link href="/dashboard" style={{ textDecoration: 'none', color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-            ← My Trips
-          </Link>
-          <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-            <span className="gradient-text">Wander</span><span style={{ color: 'var(--text-primary)' }}>AI</span>
-          </span>
-          {saving && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>Saving…</span>}
-        </div>
-      </nav>
+    <div className="min-h-screen">
+      <Navbar
+        right={
+          <>
+            {saving && <span className="hidden text-sm text-muted-foreground sm:inline">Saving…</span>}
+            <Button variant="outline" size="sm" onClick={() => router.push('/dashboard')}>← My Trips</Button>
+          </>
+        }
+      />
 
-      <div className="page-content" style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
-
-        {/* Hero header */}
-        <div className="animate-fade-in" style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 800, marginBottom: 12 }}>{trip.destination}</h1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-            <span className="badge badge-purple">📅 {trip.durationDays} days</span>
-            <span className="badge badge-teal">💰 {trip.budgetTier}</span>
-            {trip.interests.map(i => <span key={i} className="badge badge-amber">{i}</span>)}
-          </div>
-          {/* Budget summary bar */}
-          <div className="card glass" style={{ padding: '16px 24px', display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-            {[
-              { label: 'Transport', val: trip.itinerary?.estimatedBudget?.transport },
-              { label: 'Hotels', val: trip.itinerary?.estimatedBudget?.accommodation },
-              { label: 'Food', val: trip.itinerary?.estimatedBudget?.food },
-              { label: 'Activities', val: trip.itinerary?.estimatedBudget?.activities },
-              { label: 'Total', val: trip.itinerary?.estimatedBudget?.total, highlight: true },
-            ].map(b => (
-              <div key={b.label}>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginBottom: 2 }}>{b.label}</div>
-                <div style={{ fontWeight: b.highlight ? 800 : 600, color: b.highlight ? '#a5f3fc' : 'var(--text-primary)', fontSize: b.highlight ? '1.2rem' : '1rem' }}>
-                  ${b.val?.toLocaleString() ?? 0}
-                </div>
-              </div>
-            ))}
+      <Container className="max-w-[920px] py-10">
+        {/* Hero */}
+        <div className="mb-8">
+          <h1 className="font-display text-4xl font-semibold tracking-tight">{trip.destination}</h1>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge>📅 {trip.durationDays} days</Badge>
+            <Badge variant="amber">💰 {trip.budgetTier}</Badge>
+            {trip.interests.map((i) => <Badge key={i} variant="outline">{i}</Badge>)}
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
-          {tabs.map(t => (
-            <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          className="mb-7"
+          value={tab}
+          onValueChange={setTab}
+          tabs={[
+            { key: 'itinerary', label: '📅 Itinerary' },
+            { key: 'hotels', label: '🏨 Hotels' },
+            { key: 'budget', label: '💰 Budget' },
+            { key: 'packing', label: `🎒 Packing ${pct}%` },
+          ]}
+        />
 
-        {/* ── ITINERARY ── */}
+        {/* ITINERARY */}
         {tab === 'itinerary' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {trip.itinerary?.itinerary?.map(day => (
-              <div key={day.dayNumber} className="card" style={{ padding: 24 }}>
-                <h2 style={{ fontWeight: 700, marginBottom: 18, color: '#a5f3fc', fontSize: '1.05rem' }}>Day {day.dayNumber}</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="flex flex-col gap-5">
+            {trip.itinerary?.itinerary?.map((day) => (
+              <Card key={day.dayNumber} className="p-6">
+                <h2 className="mb-4 font-display text-lg font-semibold text-primary">Day {day.dayNumber}</h2>
+                <div className="flex flex-col gap-4">
                   {day.activities.map((act, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 14 }}>
-                      <div style={{ minWidth: 44, height: 44, borderRadius: 10, background: `${TIME_COLORS[act.timeOfDay]}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', border: `1px solid ${TIME_COLORS[act.timeOfDay]}44`, flexShrink: 0 }}>
-                        {TIME_ICONS[act.timeOfDay]}
+                    <div key={i} className="flex gap-4">
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xl">
+                        {TIME_ICON[act.timeOfDay] ?? '📍'}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{act.name}</span>
-                          <span style={{ color: '#10b981', fontWeight: 600, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <span className="font-semibold">{act.name}</span>
+                          <span className="whitespace-nowrap text-sm font-semibold text-success">
                             {act.estimatedCostUSD === 0 ? 'Free' : `$${act.estimatedCostUSD}`}
                           </span>
                         </div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.87rem', lineHeight: 1.5 }}>{act.description}</p>
-                        <span style={{ fontSize: '0.75rem', color: TIME_COLORS[act.timeOfDay], marginTop: 6, display: 'inline-block' }}>{act.timeOfDay}</span>
+                        <p className="mt-0.5 text-sm text-muted-foreground">{act.description}</p>
+                        <span className="mt-1.5 inline-block text-xs text-primary">{act.timeOfDay}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
 
-        {/* ── HOTELS ── */}
+        {/* HOTELS */}
         {tab === 'hotels' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          <div className="grid gap-4 sm:grid-cols-2">
             {trip.itinerary?.hotels?.map((h, i) => (
-              <div key={i} className="card" style={{ padding: 24 }}>
-                <div style={{ fontSize: '2rem', marginBottom: 12 }}>🏨</div>
-                <h3 style={{ fontWeight: 700, marginBottom: 8 }}>{h.name}</h3>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                  <span className="badge badge-purple">{h.tier}</span>
-                  <span className="badge badge-amber">⭐ {h.rating}</span>
+              <Card key={i} className="p-6">
+                <div className="mb-3 text-2xl">🏨</div>
+                <h3 className="mb-2 font-display text-lg font-semibold">{h.name}</h3>
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <Badge variant="amber">{h.tier}</Badge>
+                  <Badge variant="outline">⭐ {h.rating}</Badge>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Per night</span>
-                  <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#a5f3fc' }}>${h.estimatedCostNightUSD}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Per night</span>
+                  <span className="font-display text-xl font-semibold text-primary">${h.estimatedCostNightUSD}</span>
                 </div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>
-                  Est. total: ${(h.estimatedCostNightUSD * trip.durationDays).toLocaleString()} for {trip.durationDays} nights
-                </div>
-              </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Est. ${(h.estimatedCostNightUSD * trip.durationDays).toLocaleString()} for {trip.durationDays} nights
+                </p>
+              </Card>
             ))}
           </div>
         )}
 
-        {/* ── BUDGET ── */}
-        {tab === 'budget' && (
-          <div className="card" style={{ padding: 32 }}>
-            <h2 style={{ fontWeight: 700, marginBottom: 24, fontSize: '1.2rem' }}>Budget Breakdown</h2>
-            {[
-              { label: '🚌 Transport', key: 'transport', color: '#14b8a6' },
-              { label: '🏨 Accommodation', key: 'accommodation', color: '#06b6d4' },
-              { label: '🍽️ Food', key: 'food', color: '#f59e0b' },
-              { label: '🎭 Activities', key: 'activities', color: '#22d3ee' },
-            ].map(({ label, key, color }) => {
-              const val = trip.itinerary?.estimatedBudget?.[key as keyof typeof trip.itinerary.estimatedBudget] as number ?? 0;
-              const tot = trip.itinerary?.estimatedBudget?.total ?? 1;
-              const pctVal = Math.round((val / tot) * 100);
+        {/* BUDGET */}
+        {tab === 'budget' && budget && (
+          <Card className="p-8">
+            <h2 className="mb-6 font-display text-xl font-semibold">Budget breakdown</h2>
+            {([
+              { label: '🚌 Transport', key: 'transport' },
+              { label: '🏨 Accommodation', key: 'accommodation' },
+              { label: '🍽️ Food', key: 'food' },
+              { label: '🎭 Activities', key: 'activities' },
+            ] as const).map(({ label, key }) => {
+              const val = (budget[key] as number) ?? 0;
+              const tot = budget.total || 1;
+              const p = Math.round((val / tot) * 100);
               return (
-                <div key={key} style={{ marginBottom: 24 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontWeight: 500 }}>{label}</span>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{pctVal}%</span>
-                      <span style={{ fontWeight: 700, color }}>${val.toLocaleString()}</span>
-                    </div>
+                <div key={key} className="mb-5">
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span>{label}</span>
+                    <span className="font-semibold">${val.toLocaleString()} <span className="text-muted-foreground">· {p}%</span></span>
                   </div>
-                  <div className="progress-bar">
-                    <div style={{ height: '100%', width: `${pctVal}%`, background: color, borderRadius: 3, transition: 'width 0.6s ease' }} />
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${p}%` }} />
                   </div>
                 </div>
               );
             })}
-            <div className="divider" />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Total Estimate</span>
-              <span style={{ fontWeight: 800, fontSize: '1.8rem', color: '#a5f3fc' }}>
-                ${trip.itinerary?.estimatedBudget?.total?.toLocaleString()}
-              </span>
+            <div className="mt-6 flex items-baseline justify-between border-t border-border pt-5">
+              <span className="font-semibold">Total estimate</span>
+              <span className="font-display text-2xl font-bold text-primary">${budget.total?.toLocaleString()}</span>
             </div>
-          </div>
+          </Card>
         )}
 
-        {/* ── PACKING ── */}
+        {/* PACKING */}
         {tab === 'packing' && (
-          <div>
-            {/* progress */}
-            <div className="card" style={{ padding: 24, marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontWeight: 600 }}>Packing progress</span>
-                <span style={{ color: '#a5f3fc', fontWeight: 700 }}>{packed}/{total} packed</span>
+          <div className="flex flex-col gap-4">
+            <Card className="p-6">
+              <div className="mb-3 flex justify-between text-sm">
+                <span className="font-semibold">Packing progress</span>
+                <span className="font-semibold text-primary">{packed}/{total} packed</span>
               </div>
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${pct}%` }} />
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
               </div>
-              {pct === 100 && <p style={{ color: '#10b981', marginTop: 12, fontWeight: 600 }}>✅ All packed! You&apos;re ready to go!</p>}
-            </div>
+              {pct === 100 && <p className="mt-3 font-semibold text-success">✅ All packed — you&apos;re ready to go!</p>}
+            </Card>
 
-            {/* by category */}
             {Object.entries(byCategory).map(([cat, items]) => (
-              <div key={cat} className="card" style={{ padding: 24, marginBottom: 16 }}>
-                <h3 style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {CATEGORY_ICONS[cat]} {cat}
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 400 }}>
-                    ({items.filter(i => i.isPacked).length}/{items.length})
-                  </span>
+              <Card key={cat} className="p-6">
+                <h3 className="mb-4 flex items-center gap-2 font-semibold">
+                  {CAT_ICON[cat] ?? '📦'} {cat}
+                  <span className="text-xs font-normal text-muted-foreground">({items.filter((i) => i.isPacked).length}/{items.length})</span>
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {items.map((item, localIdx) => {
+                <div className="flex flex-col gap-2.5">
+                  {items.map((item) => {
                     const globalIdx = trip.packingList.indexOf(item);
                     return (
-                      <label key={localIdx} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '8px 0', opacity: item.isPacked ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+                      <label key={globalIdx} className="flex cursor-pointer items-center gap-3 py-1">
                         <input
                           type="checkbox"
-                          className="checkbox-custom"
                           checked={item.isPacked}
                           onChange={() => togglePacked(globalIdx)}
+                          className="h-[18px] w-[18px] rounded border-border accent-[var(--primary)]"
                         />
-                        <span style={{ textDecoration: item.isPacked ? 'line-through' : 'none', fontSize: '0.93rem' }}>
-                          {item.item}
-                        </span>
+                        <span className={item.isPacked ? 'text-sm text-muted-foreground line-through' : 'text-sm'}>{item.item}</span>
                       </label>
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
-      </div>
+      </Container>
     </div>
   );
 }

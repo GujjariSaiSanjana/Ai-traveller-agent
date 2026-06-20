@@ -17,11 +17,17 @@ const BUDGET_TIERS = [
   { value: 'mid-range', label: '🟠 Mid-range', desc: 'Hotels, restaurants, paid attractions' },
   { value: 'luxury', label: '🟡 Luxury', desc: '5-star stays, fine dining, VIP experiences' },
 ];
+const SEASONS = [
+  { value: 'Spring', label: '🌸 Spring', desc: 'Mild weather, cherry blossoms' },
+  { value: 'Summer', label: '☀️ Summer', desc: 'Warm beach weather, long days' },
+  { value: 'Autumn', label: '🍂 Autumn', desc: 'Cool breezes, fall foliage' },
+  { value: 'Winter', label: '❄️ Winter', desc: 'Snowy landscapes, cozy vibes' },
+];
 const SUGGESTIONS = ['Art', 'History', 'Food', 'Nature', 'Beaches', 'Hiking', 'Architecture', 'Nightlife', 'Shopping', 'Museums', 'Photography', 'Adventure'];
 
 export default function NewTripPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ destination: '', durationDays: 5, budgetTier: 'mid-range', interests: [] as string[] });
+  const [form, setForm] = useState({ destination: '', durationDays: 5, budgetTier: 'mid-range', interests: [] as string[], season: 'Summer' });
   const [interestInput, setInterestInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -75,6 +81,26 @@ export default function NewTripPage() {
               onChange={(e) => setForm((f) => ({ ...f, durationDays: Number(e.target.value) }))}
               className="mt-2 w-full cursor-pointer accent-[var(--primary)]" />
             <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>1 day</span><span>30 days</span></div>
+          </Card>
+
+          <Card className="p-6">
+            <Label>⛅ Season</Label>
+            <div className="grid gap-3 sm:grid-cols-2 mt-2">
+              {SEASONS.map((s) => (
+                <label key={s.value}
+                  className={cn(
+                    'flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-colors',
+                    form.season === s.value ? 'border-primary bg-primary/10' : 'border-border bg-background hover:bg-accent',
+                  )}>
+                  <input type="radio" name="season" value={s.value} checked={form.season === s.value}
+                    onChange={() => setForm((f) => ({ ...f, season: s.value }))} className="accent-[var(--primary)]" />
+                  <span>
+                    <span className="block text-sm font-semibold">{s.label}</span>
+                    <span className="block text-xs text-muted-foreground">{s.desc}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
           </Card>
 
           <Card className="p-6">

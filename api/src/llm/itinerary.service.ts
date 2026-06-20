@@ -6,7 +6,7 @@ import { logger } from '../config/logger';
 import { AppError } from '../utils/AppError';
 
 export async function generateItinerary(input: {
-  destination: string; durationDays: number; budgetTier: string; interests: string[];
+  destination: string; durationDays: number; budgetTier: string; interests: string[]; season: string;
 }): Promise<GeneratedTrip> {
   const start = Date.now();
   let lastErr = '';

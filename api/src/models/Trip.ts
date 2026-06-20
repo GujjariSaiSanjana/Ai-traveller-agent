@@ -8,6 +8,7 @@ const tripSchema = new Schema({
   interests: { type: [String], default: [] },
   itinerary: { type: Schema.Types.Mixed },
   packingList: { type: Schema.Types.Mixed },
+  season: { type: String, default: 'Summer' },
 }, { timestamps: true });
 
 export const Trip = model('Trip', tripSchema);

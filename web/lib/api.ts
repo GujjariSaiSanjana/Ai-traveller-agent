@@ -94,6 +94,7 @@ export interface Trip {
   interests: string[];
   itinerary: TripItinerary;
   packingList: PackingItem[];
+  season: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,4 +104,5 @@ export interface CreateTripInput {
   durationDays: number;
   budgetTier: string;
   interests: string[];
+  season: string;
 }

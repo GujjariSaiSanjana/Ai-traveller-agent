@@ -17,6 +17,7 @@ const CreateTripSchema = z.object({
   durationDays: z.coerce.number().int().min(1).max(30),
   budgetTier: z.string().min(1),
   interests: z.array(z.string()).default([]),
+  season: z.string().min(1),
 });
 
 const UpdateTripSchema = z.object({
@@ -27,7 +28,7 @@ const UpdateTripSchema = z.object({
 // Create a new trip
 router.post('/', validate(CreateTripSchema), async (req: AuthedRequest, res, next) => {
   try {
-    const { destination, durationDays, budgetTier, interests } = req.body;
+    const { destination, durationDays, budgetTier, interests, season } = req.body;
     
     // Call LLM service to generate itinerary details
     const generated = await generateItinerary({
@@ -35,6 +36,7 @@ router.post('/', validate(CreateTripSchema), async (req: AuthedRequest, res, nex
       durationDays,
       budgetTier,
       interests,
+      season,
     });
     
     // Save to DB
@@ -44,6 +46,7 @@ router.post('/', validate(CreateTripSchema), async (req: AuthedRequest, res, nex
       durationDays,
       budgetTier,
       interests,
+      season,
       itinerary: {
         itinerary: generated.itinerary,
         hotels: generated.hotels,

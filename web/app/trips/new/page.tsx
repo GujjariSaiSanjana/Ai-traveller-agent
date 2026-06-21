@@ -1,7 +1,7 @@
 'use client';
 import { useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { tripsApi } from '@/lib/api';
+import { tripsApi, type CreateTripInput } from '@/lib/api';
 import { Navbar } from '@/components/navbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,21 +13,21 @@ import { Container } from '@/components/ui/container';
 import { cn } from '@/lib/utils';
 
 const BUDGET_TIERS = [
-  { value: 'budget', label: '🟢 Budget', desc: 'Hostels, street food, free sights' },
-  { value: 'mid-range', label: '🟠 Mid-range', desc: 'Hotels, restaurants, paid attractions' },
-  { value: 'luxury', label: '🟡 Luxury', desc: '5-star stays, fine dining, VIP experiences' },
+  { value: 'budget', label: 'Budget', desc: 'Hostels, street food, free sights' },
+  { value: 'mid-range', label: 'Mid-range', desc: 'Hotels, restaurants, paid attractions' },
+  { value: 'luxury', label: 'Luxury', desc: '5-star stays, fine dining, VIP experiences' },
 ];
 const SEASONS = [
-  { value: 'Spring', label: '🌸 Spring', desc: 'Mild weather, cherry blossoms' },
-  { value: 'Summer', label: '☀️ Summer', desc: 'Warm beach weather, long days' },
-  { value: 'Autumn', label: '🍂 Autumn', desc: 'Cool breezes, fall foliage' },
-  { value: 'Winter', label: '❄️ Winter', desc: 'Snowy landscapes, cozy vibes' },
+  { value: 'Spring', label: 'Spring', desc: 'Mild weather, blossoms' },
+  { value: 'Summer', label: 'Summer', desc: 'Warm, long days' },
+  { value: 'Autumn', label: 'Autumn', desc: 'Cool breezes, foliage' },
+  { value: 'Winter', label: 'Winter', desc: 'Cold, snow possible' },
 ];
 const SUGGESTIONS = ['Art', 'History', 'Food', 'Nature', 'Beaches', 'Hiking', 'Architecture', 'Nightlife', 'Shopping', 'Museums', 'Photography', 'Adventure'];
 
 export default function NewTripPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ destination: '', durationDays: 5, budgetTier: 'mid-range', interests: [] as string[], season: 'Summer' });
+  const [form, setForm] = useState({ destination: '', durationDays: 5, budgetTier: 'mid-range', interests: [] as string[], season: 'Summer', startDate: '', endDate: '' });
   const [interestInput, setInterestInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,10 +47,22 @@ export default function NewTripPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.destination.trim()) { setError('Please enter a destination.'); return; }
+    if (form.startDate && form.endDate && form.endDate < form.startDate) {
+      setError('End date must be after the start date.'); return;
+    }
     setError('');
     setLoading(true);
+    const payload: CreateTripInput = {
+      destination: form.destination,
+      durationDays: form.durationDays,
+      budgetTier: form.budgetTier,
+      interests: form.interests,
+      season: form.season,
+      ...(form.startDate ? { startDate: form.startDate } : {}),
+      ...(form.endDate ? { endDate: form.endDate } : {}),
+    };
     try {
-      const trip = await tripsApi.create(form);
+      const trip = await tripsApi.create(payload);
       router.push(`/trips/${trip._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -60,23 +72,23 @@ export default function NewTripPage() {
 
   return (
     <div className="min-h-screen">
-      <Navbar right={<Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>← Back</Button>} />
+      <Navbar right={<Button variant="ghost" size="sm" onClick={() => router.push('/dashboard')}>Back</Button>} />
 
       <Container className="max-w-[720px] py-10">
         <div className="mb-8">
-          <h1 className="font-display text-3xl font-semibold tracking-tight">✦ Plan a new trip</h1>
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Plan a new trip</h1>
           <p className="mt-1 text-muted-foreground">Fill in the details and AI will generate your full itinerary in seconds.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <Card className="p-6">
-            <Label htmlFor="dest">🌍 Where are you going?</Label>
+            <Label htmlFor="dest">Where are you going?</Label>
             <Input id="dest" autoFocus placeholder="e.g. Tokyo, Japan or Rome, Italy"
               value={form.destination} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} />
           </Card>
 
           <Card className="p-6">
-            <Label htmlFor="days">📅 How many days? <span className="ml-1 font-display text-xl font-bold text-primary">{form.durationDays}</span></Label>
+            <Label htmlFor="days">How many days? <span className="ml-1 font-display text-xl font-bold text-primary">{form.durationDays}</span></Label>
             <input id="days" type="range" min={1} max={30} value={form.durationDays}
               onChange={(e) => setForm((f) => ({ ...f, durationDays: Number(e.target.value) }))}
               className="mt-2 w-full cursor-pointer accent-[var(--primary)]" />
@@ -84,8 +96,23 @@ export default function NewTripPage() {
           </Card>
 
           <Card className="p-6">
-            <Label>⛅ Season</Label>
-            <div className="grid gap-3 sm:grid-cols-2 mt-2">
+            <Label>Travel dates <span className="font-normal text-muted-foreground">(optional — enables real weather-based packing)</span></Label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <span className="mb-1 block text-xs text-muted-foreground">Start</span>
+                <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
+              </div>
+              <div>
+                <span className="mb-1 block text-xs text-muted-foreground">End</span>
+                <Input type="date" value={form.endDate} min={form.startDate || undefined} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">No dates? We&apos;ll use the season below instead.</p>
+          </Card>
+
+          <Card className="p-6">
+            <Label>Season</Label>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
               {SEASONS.map((s) => (
                 <label key={s.value}
                   className={cn(
@@ -104,7 +131,7 @@ export default function NewTripPage() {
           </Card>
 
           <Card className="p-6">
-            <Label>💰 Budget tier</Label>
+            <Label>Budget tier</Label>
             <div className="flex flex-col gap-2.5">
               {BUDGET_TIERS.map((bt) => (
                 <label key={bt.value}
@@ -124,7 +151,7 @@ export default function NewTripPage() {
           </Card>
 
           <Card className="p-6">
-            <Label htmlFor="interest">🎯 Interests <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Label htmlFor="interest">Interests <span className="font-normal text-muted-foreground">(optional)</span></Label>
             {form.interests.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {form.interests.map((i) => (
@@ -152,7 +179,7 @@ export default function NewTripPage() {
           )}
 
           <Button type="submit" size="lg" disabled={loading} className="w-full">
-            {loading ? <><Spinner /> Generating your itinerary… (this may take a moment)</> : '✦ Generate itinerary'}
+            {loading ? <><Spinner /> Generating your itinerary… (this may take a moment)</> : 'Generate itinerary'}
           </Button>
         </form>
       </Container>

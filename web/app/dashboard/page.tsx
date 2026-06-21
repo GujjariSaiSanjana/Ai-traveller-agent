@@ -9,28 +9,34 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Container } from '@/components/ui/container';
+import { Dialog, DialogFooter } from '@/components/ui/dialog';
 
 const TIER_LABEL: Record<string, string> = { budget: 'Budget', 'mid-range': 'Mid-range', luxury: 'Luxury', Low: 'Budget', Medium: 'Mid-range', High: 'Luxury' };
 
 function TripCard({ trip, onDelete }: { trip: Trip; onDelete: () => void }) {
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const packed = trip.packingList?.filter((p) => p.isPacked).length ?? 0;
   const total = trip.packingList?.length ?? 0;
   const pct = total > 0 ? Math.round((packed / total) * 100) : 0;
 
-  async function handleDelete(e: React.MouseEvent) {
+  function requestDelete(e: React.MouseEvent) {
     e.preventDefault();
-    if (!confirm('Delete this trip?')) return;
+    setConfirmOpen(true);
+  }
+  async function doDelete() {
     setDeleting(true);
     try {
       await tripsApi.delete(trip._id);
       onDelete();
     } catch {
       setDeleting(false);
+      setConfirmOpen(false);
     }
   }
 
   return (
+    <>
     <Link href={`/trips/${trip._id}`} className="group block">
       <Card className="h-full p-6 transition-transform group-hover:-translate-y-1">
         <div className="mb-4 flex items-start justify-between">
@@ -41,7 +47,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: () => void }) {
             </p>
           </div>
           <button
-            onClick={handleDelete}
+            onClick={requestDelete}
             disabled={deleting}
             aria-label="Delete trip"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
@@ -82,6 +88,19 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: () => void }) {
         )}
       </Card>
     </Link>
+
+    <Dialog
+      open={confirmOpen}
+      onClose={() => { if (!deleting) setConfirmOpen(false); }}
+      title="Delete this trip?"
+      description="This permanently removes the itinerary and can't be undone."
+    >
+      <DialogFooter>
+        <Button variant="outline" size="sm" onClick={() => setConfirmOpen(false)} disabled={deleting}>Cancel</Button>
+        <Button variant="destructive" size="sm" onClick={doDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete'}</Button>
+      </DialogFooter>
+    </Dialog>
+    </>
   );
 }
 

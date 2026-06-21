@@ -1,5 +1,4 @@
-import { llm } from './provider';
-import { env } from '../config/env';
+import { providers } from './provider';
 import { ItineraryZ, DayZ, type GeneratedTrip, type GeneratedDay } from './schemas';
 import { buildPrompt, buildDayPrompt } from './prompts';
 import { logger } from '../config/logger';
@@ -14,42 +13,37 @@ interface GenInput {
   weather?: string;
 }
 
-// Some providers/models (e.g. certain Gemini compat models) reject
-// response_format json_object. Remember once and stop sending it.
-let jsonModeSupported = true;
-
+// Try each provider in the fallback chain; within a provider, try json-mode
+// then plain mode. Skip to the next provider on rate-limit / auth / not-found.
 async function callLLM(prompt: string, label: string): Promise<string> {
-  const start = Date.now();
   const messages = [
     { role: 'system' as const, content: 'You are a travel planner. Output ONLY valid JSON, no prose, no markdown fences.' },
     { role: 'user' as const, content: prompt },
   ];
 
-  async function create(useJson: boolean) {
-    return llm.chat.completions.create({
-      model: env.LLM_MODEL,
-      messages,
-      ...(useJson ? { response_format: { type: 'json_object' as const } } : {}),
-    });
-  }
-
-  try {
-    const res = await create(jsonModeSupported);
-    logger.info({ ms: Date.now() - start, usage: res.usage, label, jsonMode: jsonModeSupported }, 'LLM call');
-    return res.choices[0]?.message?.content ?? '{}';
-  } catch (e: any) {
-    // Surface the real provider error (was previously swallowed -> generic 502).
-    logger.error({ err: e?.message, status: e?.status, label, jsonMode: jsonModeSupported }, 'LLM request failed');
-    // If json-mode was the problem, retry once without it and remember.
-    if (jsonModeSupported) {
-      jsonModeSupported = false;
-      logger.warn({ label }, 'retrying LLM without response_format (json mode disabled)');
-      const res = await create(false);
-      logger.info({ ms: Date.now() - start, usage: res.usage, label, jsonMode: false }, 'LLM call (fallback)');
-      return res.choices[0]?.message?.content ?? '{}';
+  let lastErr: any;
+  for (const p of providers) {
+    for (const useJson of [true, false]) {
+      const start = Date.now();
+      try {
+        const res = await p.client.chat.completions.create({
+          model: p.model,
+          messages,
+          ...(useJson ? { response_format: { type: 'json_object' as const } } : {}),
+        });
+        logger.info({ provider: p.label, model: p.model, jsonMode: useJson, ms: Date.now() - start, usage: res.usage, label }, 'LLM ok');
+        return res.choices[0]?.message?.content ?? '{}';
+      } catch (e: any) {
+        lastErr = e;
+        const status = e?.status;
+        logger.warn({ provider: p.label, status, err: e?.message, jsonMode: useJson, label }, 'LLM call failed');
+        // rate-limit / auth / wrong-model: no point retrying this provider — move to the next.
+        if (status === 429 || status === 401 || status === 403 || status === 404) break;
+        // otherwise (e.g. 400 json-mode unsupported) fall through to the plain-mode retry.
+      }
     }
-    throw e;
   }
+  throw lastErr ?? new Error('All LLM providers failed');
 }
 
 // Strip accidental ```json fences so JSON.parse survives non-json-mode replies.

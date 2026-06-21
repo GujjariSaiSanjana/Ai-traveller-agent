@@ -19,9 +19,9 @@ const steps = [
 ];
 
 const previewDay = [
-  { icon: '🌅', name: 'Sensō-ji Temple', cost: 'Free' },
-  { icon: '☀️', name: 'Asakusa street food', cost: '$18' },
-  { icon: '🌙', name: 'Tokyo Skytree at dusk', cost: '$22' },
+  { name: 'Sensō-ji Temple', cost: 'Free' },
+  { name: 'Asakusa street food', cost: '$18' },
+  { name: 'Tokyo Skytree at dusk', cost: '$22' },
 ];
 
 export default function LandingPage() {
@@ -80,10 +80,10 @@ export default function LandingPage() {
                   <Badge variant="amber">5 days</Badge>
                 </div>
                 <div className="mt-5 space-y-3">
-                  {previewDay.map((a) => (
+                  {previewDay.map((a, i) => (
                     <div key={a.name} className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-lg">
-                        {a.icon}
+                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted font-display text-sm font-semibold text-primary">
+                        {i + 1}
                       </span>
                       <span className="flex-1 text-sm font-medium">{a.name}</span>
                       <span className="text-sm font-semibold text-success">{a.cost}</span>
@@ -96,7 +96,7 @@ export default function LandingPage() {
                 </div>
               </Card>
               <Card className="absolute -bottom-6 -left-6 flex items-center gap-3 px-4 py-3">
-                <span className="text-lg">⛅</span>
+                <span className="h-8 w-1 rounded-full bg-primary" />
                 <div>
                   <p className="text-xs font-semibold">Weather-aware packing</p>
                   <p className="text-xs text-muted-foreground">9 / 15 packed</p>

@@ -36,6 +36,9 @@ export const tripsApi = {
   update: (id: string, patch: Partial<Pick<Trip, 'itinerary' | 'packingList'>>) =>
     request<Trip>(`/trips/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
 
+  regenerateDay: (id: string, day: number, instruction: string) =>
+    request<Trip>(`/trips/${id}/days/${day}/regenerate`, { method: 'POST', body: JSON.stringify({ instruction }) }),
+
   delete: (id: string) => request(`/trips/${id}`, { method: 'DELETE' }),
 };
 
@@ -47,6 +50,7 @@ export interface User {
 }
 
 export interface Activity {
+  _id?: string;
   name: string;
   description: string;
   estimatedCostUSD: number;
@@ -74,9 +78,19 @@ export interface Budget {
 }
 
 export interface PackingItem {
+  _id?: string;
   item: string;
   category: 'Documents' | 'Clothing' | 'Gear' | 'Other';
+  reason?: string;
   isPacked: boolean;
+}
+
+export interface Weather {
+  source: 'forecast' | 'climatology';
+  avgHighC: number;
+  avgLowC: number;
+  precipChance: number;
+  summary: string;
 }
 
 export interface TripItinerary {
@@ -95,6 +109,9 @@ export interface Trip {
   itinerary: TripItinerary;
   packingList: PackingItem[];
   season: string;
+  startDate?: string;
+  endDate?: string;
+  weather?: Weather;
   createdAt: string;
   updatedAt: string;
 }
@@ -105,4 +122,6 @@ export interface CreateTripInput {
   budgetTier: string;
   interests: string[];
   season: string;
+  startDate?: string;
+  endDate?: string;
 }

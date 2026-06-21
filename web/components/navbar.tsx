@@ -10,6 +10,14 @@ export function Navbar({ right }: { right?: React.ReactNode }) {
           Wander<span className="text-primary">AI</span>
         </Link>
         <div className="flex items-center gap-3">
+          <a
+            href="https://saisanjana.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline"
+          >
+            Portfolio ↗
+          </a>
           {right}
           <ThemeToggle />
         </div>

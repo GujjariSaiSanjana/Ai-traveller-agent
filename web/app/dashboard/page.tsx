@@ -46,13 +46,19 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: () => void }) {
             aria-label="Delete trip"
             className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
           >
-            {deleting ? '…' : '🗑'}
+            {deleting ? (
+              '…'
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+              </svg>
+            )}
           </button>
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <Badge>📅 {trip.durationDays} days</Badge>
-          <Badge variant="amber">💰 {TIER_LABEL[trip.budgetTier] ?? trip.budgetTier}</Badge>
+          <Badge>{trip.durationDays} days</Badge>
+          <Badge variant="amber">{TIER_LABEL[trip.budgetTier] ?? trip.budgetTier}</Badge>
           {trip.interests?.slice(0, 2).map((i) => <Badge key={i} variant="outline">{i}</Badge>)}
         </div>
 
@@ -66,7 +72,7 @@ function TripCard({ trip, onDelete }: { trip: Trip; onDelete: () => void }) {
         {total > 0 && (
           <>
             <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-              <span>🎒 Packing</span>
+              <span>Packing</span>
               <span>{packed}/{total} ({pct}%)</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -113,10 +119,10 @@ export default function DashboardPage() {
   }
 
   const stats = [
-    { label: 'Trips planned', value: trips.length, icon: '🗺️' },
-    { label: 'Total days', value: trips.reduce((a, t) => a + t.durationDays, 0), icon: '📅' },
-    { label: 'Total budget', value: `$${trips.reduce((a, t) => a + (t.itinerary?.estimatedBudget?.total ?? 0), 0).toLocaleString()}`, icon: '💰' },
-    { label: 'Items to pack', value: trips.reduce((a, t) => a + (t.packingList?.length ?? 0), 0), icon: '🎒' },
+    { label: 'Trips planned', value: trips.length },
+    { label: 'Total days', value: trips.reduce((a, t) => a + t.durationDays, 0) },
+    { label: 'Total budget', value: `$${trips.reduce((a, t) => a + (t.itinerary?.estimatedBudget?.total ?? 0), 0).toLocaleString()}` },
+    { label: 'Items to pack', value: trips.reduce((a, t) => a + (t.packingList?.length ?? 0), 0) },
   ];
 
   return (
@@ -124,7 +130,7 @@ export default function DashboardPage() {
       <Navbar
         right={
           <>
-            <span className="hidden text-sm text-muted-foreground sm:inline">👋 {user?.name}</span>
+            <span className="hidden text-sm text-muted-foreground sm:inline">{user?.name}</span>
             <Button variant="outline" size="sm" onClick={handleLogout}>Sign out</Button>
           </>
         }
@@ -138,16 +144,15 @@ export default function DashboardPage() {
               {trips.length === 0 ? 'No trips yet — create your first one.' : `${trips.length} journey${trips.length !== 1 ? 's' : ''} planned`}
             </p>
           </div>
-          <Link href="/trips/new"><Button>✦ New trip</Button></Link>
+          <Link href="/trips/new"><Button>New trip</Button></Link>
         </div>
 
         {trips.length > 0 && (
           <div className="mb-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
             {stats.map((s) => (
-              <Card key={s.label} className="p-5 text-center">
-                <div className="mb-1.5 text-2xl">{s.icon}</div>
-                <div className="font-display text-2xl font-semibold text-primary">{s.value}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{s.label}</div>
+              <Card key={s.label} className="p-5">
+                <div className="font-display text-3xl font-semibold text-primary">{s.value}</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
               </Card>
             ))}
           </div>
@@ -155,12 +160,11 @@ export default function DashboardPage() {
 
         {trips.length === 0 ? (
           <Card className="px-10 py-20 text-center">
-            <div className="mb-5 text-5xl">✈️</div>
-            <h2 className="mb-2 font-display text-xl font-semibold">Your adventure starts here</h2>
+            <h2 className="mb-2 font-display text-2xl font-semibold">Your adventure starts here</h2>
             <p className="mx-auto mb-7 max-w-md text-muted-foreground">
               Create your first AI-powered trip and get a full itinerary, hotel picks, budget and packing list in seconds.
             </p>
-            <Link href="/trips/new"><Button size="lg">✦ Plan my first trip</Button></Link>
+            <Link href="/trips/new"><Button size="lg">Plan my first trip</Button></Link>
           </Card>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

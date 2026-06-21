@@ -10,6 +10,13 @@ const schema = z.object({
   LLM_API_KEY: z.string().min(1),
   LLM_BASE_URL: z.string().url(),
   LLM_MODEL: z.string().min(1),
+  // Optional fallback providers (tried in order on rate-limit / failure).
+  LLM_API_KEY_2: z.string().optional(),
+  LLM_BASE_URL_2: z.string().url().optional(),
+  LLM_MODEL_2: z.string().optional(),
+  LLM_API_KEY_3: z.string().optional(),
+  LLM_BASE_URL_3: z.string().url().optional(),
+  LLM_MODEL_3: z.string().optional(),
   WEB_ORIGIN: z.string().url(),           // CORS allowlist
 });
 

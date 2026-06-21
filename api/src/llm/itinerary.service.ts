@@ -88,3 +88,22 @@ function recomputeBudget(t: GeneratedTrip): GeneratedTrip {
   b.total = b.transport + b.accommodation + b.food + b.activities;
   return t;
 }
+
+/** Ping every configured provider with a tiny call — used by GET /health/llm. */
+export async function pingProviders() {
+  return Promise.all(
+    providers.map(async (p) => {
+      const start = Date.now();
+      try {
+        await p.client.chat.completions.create({
+          model: p.model,
+          max_tokens: 8,
+          messages: [{ role: 'user', content: 'ping' }],
+        });
+        return { provider: p.label, model: p.model, ok: true, ms: Date.now() - start };
+      } catch (e: any) {
+        return { provider: p.label, model: p.model, ok: false, status: e?.status, error: e?.message };
+      }
+    }),
+  );
+}

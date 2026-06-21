@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { tripsApi, type Trip, type PackingItem, type Activity, type Hotel, type Budget } from '@/lib/api';
+import { tripsApi, type Trip, type PackingItem, type Activity, type Hotel, type DayPlan, type TripItinerary } from '@/lib/api';
 import { Navbar } from '@/components/navbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,7 @@ import { Container } from '@/components/ui/container';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-const TIME_ICON: Record<string, string> = { Morning: '🌅', Afternoon: '☀️', Evening: '🌙' };
-const CAT_ICON: Record<string, string> = { Documents: '📄', Clothing: '👕', Gear: '🎒', Other: '📦' };
+const TIME_LABEL: Record<string, string> = { Morning: 'AM', Afternoon: 'PM', Evening: 'EVE' };
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +41,7 @@ export default function TripDetailPage() {
     name: '',
     tier: 'mid-range',
     estimatedCostNightUSD: 100,
-    rating: '⭐ 4.0'
+    rating: '4.0'
   });
 
   // Editing Budget Categories State
@@ -66,14 +65,14 @@ export default function TripDetailPage() {
   }
 
   // Save changes to backend and live-recalculate budgets
-  function saveItineraryChanges(updatedItinerary: any) {
+  function saveItineraryChanges(updatedItinerary: TripItinerary) {
     if (!trip) return;
     const actTotal = (updatedItinerary.itinerary || []).reduce(
-      (sum: number, day: any) => sum + (day.activities || []).reduce((s: number, a: any) => s + (Number(a.estimatedCostUSD) || 0), 0),
+      (sum: number, day: DayPlan) => sum + (day.activities || []).reduce((s: number, a: Activity) => s + (Number(a.estimatedCostUSD) || 0), 0),
       0
     );
     const hotelTotal = (updatedItinerary.hotels || []).reduce(
-      (sum: number, hotel: any) => sum + (Number(hotel.estimatedCostNightUSD) || 0) * trip.durationDays,
+      (sum: number, hotel: Hotel) => sum + (Number(hotel.estimatedCostNightUSD) || 0) * trip.durationDays,
       0
     );
     const transport = Number(updatedItinerary.estimatedBudget?.transport) || 0;
@@ -191,6 +190,22 @@ export default function TripDetailPage() {
     saveItineraryChanges(newItinerary);
   }
 
+  // Regenerate a whole day via the LLM (server returns the updated trip with budget re-synced).
+  async function regenerateDayHandler(dayNum: number) {
+    if (!trip) return;
+    const instruction = window.prompt(`Regenerate Day ${dayNum} — describe what you want (e.g. "more outdoor activities, less shopping")`);
+    if (!instruction || !instruction.trim()) return;
+    setSaving(true);
+    try {
+      const updated = await tripsApi.regenerateDay(id, dayNum, instruction.trim());
+      setTrip(updated);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to regenerate day');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // --- Handlers for Hotels ---
   function startEditHotel(idx: number, hotel: Hotel) {
     setEditingHotelIdx(idx);
@@ -206,7 +221,7 @@ export default function TripDetailPage() {
           name: editHotelForm.name!,
           tier: editHotelForm.tier || 'mid-range',
           estimatedCostNightUSD: Number(editHotelForm.estimatedCostNightUSD) || 0,
-          rating: editHotelForm.rating || '⭐ 4.0',
+          rating: editHotelForm.rating || '4.0',
         };
       }
       return h;
@@ -233,7 +248,7 @@ export default function TripDetailPage() {
     const newItinerary = { ...trip.itinerary };
     newItinerary.hotels = [...(newItinerary.hotels || []), { ...newHotelForm, estimatedCostNightUSD: Number(newHotelForm.estimatedCostNightUSD) || 0 }];
     setAddingHotel(false);
-    setNewHotelForm({ name: '', tier: 'mid-range', estimatedCostNightUSD: 100, rating: '⭐ 4.0' });
+    setNewHotelForm({ name: '', tier: 'mid-range', estimatedCostNightUSD: 100, rating: '4.0' });
     saveItineraryChanges(newItinerary);
   }
 
@@ -298,9 +313,9 @@ export default function TripDetailPage() {
         <div className="mb-8">
           <h1 className="font-display text-4xl font-semibold tracking-tight">{trip.destination}</h1>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge>📅 {trip.durationDays} days</Badge>
-            <Badge>⛅ {trip.season}</Badge>
-            <Badge variant="amber">💰 {trip.budgetTier}</Badge>
+            <Badge>{trip.durationDays} days</Badge>
+            <Badge>{trip.season}</Badge>
+            <Badge variant="amber">{trip.budgetTier}</Badge>
             {trip.interests.map((i) => <Badge key={i} variant="outline">{i}</Badge>)}
           </div>
         </div>
@@ -310,10 +325,10 @@ export default function TripDetailPage() {
           value={tab}
           onValueChange={setTab}
           tabs={[
-            { key: 'itinerary', label: '📅 Itinerary' },
-            { key: 'hotels', label: '🏨 Hotels' },
-            { key: 'budget', label: '💰 Budget' },
-            { key: 'packing', label: `🎒 Packing ${pct}%` },
+            { key: 'itinerary', label: 'Itinerary' },
+            { key: 'hotels', label: 'Hotels' },
+            { key: 'budget', label: 'Budget' },
+            { key: 'packing', label: `Packing ${pct}%` },
           ]}
         />
 
@@ -322,7 +337,12 @@ export default function TripDetailPage() {
           <div className="flex flex-col gap-5">
             {trip.itinerary?.itinerary?.map((day) => (
               <Card key={day.dayNumber} className="p-6">
-                <h2 className="mb-4 font-display text-lg font-semibold text-primary">Day {day.dayNumber}</h2>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="font-display text-lg font-semibold text-primary">Day {day.dayNumber}</h2>
+                  <Button variant="ghost" size="sm" className="h-8 border border-border px-3 text-xs hover:bg-accent" onClick={() => regenerateDayHandler(day.dayNumber)}>
+                    Regenerate day
+                  </Button>
+                </div>
                 <div className="flex flex-col gap-4">
                   {day.activities.map((act, i) => {
                     const isEditing = editingActivityKey === `${day.dayNumber}-${i}`;
@@ -352,12 +372,12 @@ export default function TripDetailPage() {
                                 <label className="block text-xs font-semibold text-muted-foreground mb-1">Time of Day</label>
                                 <select
                                   value={editActivityForm?.timeOfDay ?? 'Morning'}
-                                  onChange={(e) => setEditActivityForm(f => ({ ...f, timeOfDay: e.target.value as any }))}
+                                  onChange={(e) => setEditActivityForm(f => ({ ...f, timeOfDay: e.target.value as Activity['timeOfDay'] }))}
                                   className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
                                 >
-                                  <option value="Morning">🌅 Morning</option>
-                                  <option value="Afternoon">☀️ Afternoon</option>
-                                  <option value="Evening">🌙 Evening</option>
+                                  <option value="Morning">Morning</option>
+                                  <option value="Afternoon">Afternoon</option>
+                                  <option value="Evening">Evening</option>
                                 </select>
                               </div>
                             </div>
@@ -372,7 +392,7 @@ export default function TripDetailPage() {
                             </div>
                             <div className="flex justify-between items-center mt-1">
                               <Button variant="outline" size="sm" onClick={() => deleteActivity(day.dayNumber, i)} className="text-destructive border-destructive hover:bg-destructive/10 h-9 px-3">
-                                🗑️ Delete
+                                Delete
                               </Button>
                               <div className="flex gap-2">
                                 <Button variant="ghost" size="sm" onClick={cancelEditActivity} className="h-9 px-3">Cancel</Button>
@@ -386,8 +406,8 @@ export default function TripDetailPage() {
 
                     return (
                       <div key={i} className="group relative flex gap-4 p-2.5 rounded-xl hover:bg-accent/40 transition-colors">
-                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xl">
-                          {TIME_ICON[act.timeOfDay] ?? '📍'}
+                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-xs font-semibold text-muted-foreground">
+                          {TIME_LABEL[act.timeOfDay] ?? '—'}
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -401,8 +421,11 @@ export default function TripDetailPage() {
                                 size="sm"
                                 className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xs border border-transparent hover:border-border hover:bg-card"
                                 onClick={() => startEditActivity(day.dayNumber, i, act)}
+                                aria-label="Edit activity"
                               >
-                                ✏️
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+                                </svg>
                               </Button>
                             </div>
                           </div>
@@ -440,12 +463,12 @@ export default function TripDetailPage() {
                           <label className="block text-xs font-semibold text-muted-foreground mb-1">Time of Day</label>
                           <select
                             value={newActivityForm.timeOfDay}
-                            onChange={(e) => setNewActivityForm(f => ({ ...f, timeOfDay: e.target.value as any }))}
+                            onChange={(e) => setNewActivityForm(f => ({ ...f, timeOfDay: e.target.value as Activity['timeOfDay'] }))}
                             className="flex h-11 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
                           >
-                            <option value="Morning">🌅 Morning</option>
-                            <option value="Afternoon">☀️ Afternoon</option>
-                            <option value="Evening">🌙 Evening</option>
+                            <option value="Morning">Morning</option>
+                            <option value="Afternoon">Afternoon</option>
+                            <option value="Evening">Evening</option>
                           </select>
                         </div>
                       </div>
@@ -466,7 +489,7 @@ export default function TripDetailPage() {
                   </Card>
                 ) : (
                   <Button variant="outline" size="sm" className="w-full mt-4 border-dashed py-5 border-border hover:border-primary hover:bg-primary/5 transition-colors" onClick={() => setAddingActivityDay(day.dayNumber)}>
-                    ＋ Add Activity to Day {day.dayNumber}
+                    + Add Activity to Day {day.dayNumber}
                   </Button>
                 )}
               </Card>
@@ -517,7 +540,7 @@ export default function TripDetailPage() {
                         </div>
                         <div className="flex justify-between items-center mt-2">
                           <Button variant="outline" size="sm" onClick={() => deleteHotel(i)} className="text-destructive border-destructive hover:bg-destructive/10 h-9 px-3">
-                            🗑️ Delete
+                            Delete
                           </Button>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="sm" onClick={cancelEditHotel} className="h-9 px-3">Cancel</Button>
@@ -538,14 +561,14 @@ export default function TripDetailPage() {
                         className="h-8 px-2.5 opacity-0 group-hover:opacity-100 transition-all border border-border bg-card hover:bg-accent text-xs"
                         onClick={() => startEditHotel(i, h)}
                       >
-                        ✏️ Edit
+                        Edit
                       </Button>
                     </div>
-                    <div className="mb-3 text-2xl">🏨</div>
+                    
                     <h3 className="mb-2 font-display text-lg font-semibold">{h.name}</h3>
                     <div className="mb-4 flex flex-wrap gap-2">
                       <Badge variant="amber">{h.tier}</Badge>
-                      <Badge variant="outline">⭐ {h.rating}</Badge>
+                      <Badge variant="outline">{h.rating}</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Per night</span>
@@ -577,7 +600,7 @@ export default function TripDetailPage() {
                       <Input
                         type="number"
                         value={newHotelForm.estimatedCostNightUSD || ''}
-                        onChange={(e) => setNewHotelForm(f => ({ ...f, estimatedCostNightUSD: Number(newHotelForm.estimatedCostNightUSD) || 0 }))}
+                        onChange={(e) => setNewHotelForm(f => ({ ...f, estimatedCostNightUSD: Number(e.target.value) || 0 }))}
                       />
                     </div>
                     <div>
@@ -585,7 +608,7 @@ export default function TripDetailPage() {
                       <Input
                         value={newHotelForm.rating}
                         onChange={(e) => setNewHotelForm(f => ({ ...f, rating: e.target.value }))}
-                        placeholder="e.g. ⭐ 4.5"
+                        placeholder="e.g. 4.5"
                       />
                     </div>
                     <div>
@@ -605,7 +628,7 @@ export default function TripDetailPage() {
               </Card>
             ) : (
               <Button variant="outline" className="border-dashed py-6 border-border hover:border-primary hover:bg-primary/5 transition-colors" onClick={() => setAddingHotel(true)}>
-                ＋ Add Hotel Option
+                + Add Hotel Option
               </Button>
             )}
           </div>
@@ -624,7 +647,7 @@ export default function TripDetailPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="font-display text-2xl font-bold">{isOverBudget ? '⚠️' : '✅'} ${totalSpent.toLocaleString()}</span>
+                  <span className="font-display text-2xl font-bold">${totalSpent.toLocaleString()}</span>
                   <span className="text-muted-foreground text-sm"> / ${budgetLimit.toLocaleString()} cap</span>
                 </div>
               </div>
@@ -642,7 +665,7 @@ export default function TripDetailPage() {
               </div>
               {isOverBudget && (
                 <div className="mt-3 text-sm text-destructive font-semibold text-center border border-destructive/20 bg-destructive/5 py-2.5 rounded-lg">
-                  ⚠️ Budget Alert: You have exceeded the target cap of ${budgetLimit.toLocaleString()} for this trip's tier. Consider editing activity costs, choosing a cheaper hotel, or scaling back transport/food budgets.
+                  Budget Alert: You have exceeded the target cap of ${budgetLimit.toLocaleString()} for this trip&apos;s tier. Consider editing activity costs, choosing a cheaper hotel, or scaling back transport/food budgets.
                 </div>
               )}
             </Card>
@@ -650,10 +673,10 @@ export default function TripDetailPage() {
             <Card className="p-8">
               <h2 className="mb-6 font-display text-xl font-semibold">Budget breakdown</h2>
               {([
-                { label: '🚌 Transport', key: 'transport', readOnly: false },
-                { label: '🏨 Accommodation', key: 'accommodation', readOnly: true },
-                { label: '🍽️ Food', key: 'food', readOnly: false },
-                { label: '🎭 Activities', key: 'activities', readOnly: true },
+                { label: 'Transport', key: 'transport', readOnly: false },
+                { label: 'Accommodation', key: 'accommodation', readOnly: true },
+                { label: 'Food', key: 'food', readOnly: false },
+                { label: 'Activities', key: 'activities', readOnly: true },
               ] as const).map(({ label, key, readOnly }) => {
                 const val = (budget[key] as number) ?? 0;
                 const tot = budget.total || 1;
@@ -673,7 +696,7 @@ export default function TripDetailPage() {
                               className="h-8 w-24 text-xs px-2"
                               autoFocus
                             />
-                            <Button size="sm" className="h-8 px-2 text-xs" onClick={() => saveBudgetCategoryEdit(key as any)}>Save</Button>
+                            <Button size="sm" className="h-8 px-2 text-xs" onClick={() => saveBudgetCategoryEdit(key as 'transport' | 'food')}>Save</Button>
                             <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setEditingBudgetCategory(null)}>Cancel</Button>
                           </div>
                         ) : (
@@ -684,9 +707,9 @@ export default function TripDetailPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 px-1.5 text-xs border border-border hover:bg-accent"
-                                onClick={() => startEditBudgetCategory(key as any, val)}
+                                onClick={() => startEditBudgetCategory(key as 'transport' | 'food', val)}
                               >
-                                ✏️ Edit
+                                Edit
                               </Button>
                             )}
                           </div>
@@ -718,11 +741,11 @@ export default function TripDetailPage() {
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
               </div>
-              {pct === 100 && total > 0 && <p className="mt-3 font-semibold text-success">✅ All packed — you&apos;re ready to go!</p>}
+              {pct === 100 && total > 0 && <p className="mt-3 font-semibold text-success">All packed — you&apos;re ready to go!</p>}
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-sm font-semibold mb-3">＋ Add Custom Packing Item</h3>
+              <h3 className="text-sm font-semibold mb-3">+ Add Custom Packing Item</h3>
               <form onSubmit={addCustomPackingItem} className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <Input
@@ -735,13 +758,13 @@ export default function TripDetailPage() {
                 <div className="w-full sm:w-48">
                   <select
                     value={newPackingCategory}
-                    onChange={(e) => setNewPackingCategory(e.target.value as any)}
+                    onChange={(e) => setNewPackingCategory(e.target.value as PackingItem['category'])}
                     className="flex h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
-                    <option value="Documents">📄 Documents</option>
-                    <option value="Clothing">👕 Clothing</option>
-                    <option value="Gear">🎒 Gear</option>
-                    <option value="Other">📦 Other</option>
+                    <option value="Documents">Documents</option>
+                    <option value="Clothing">Clothing</option>
+                    <option value="Gear">Gear</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <Button type="submit" size="sm" className="h-10 px-4" disabled={!newPackingItem.trim()}>
@@ -753,7 +776,7 @@ export default function TripDetailPage() {
             {Object.entries(byCategory).map(([cat, items]) => (
               <Card key={cat} className="p-6">
                 <h3 className="mb-4 flex items-center gap-2 font-semibold">
-                  {CAT_ICON[cat] ?? '📦'} {cat}
+                  {cat}
                   <span className="text-xs font-normal text-muted-foreground">({items.filter((i) => i.isPacked).length}/{items.length})</span>
                 </h3>
                 <div className="flex flex-col gap-2.5">
@@ -768,7 +791,10 @@ export default function TripDetailPage() {
                             onChange={() => togglePacked(globalIdx)}
                             className="h-[18px] w-[18px] rounded border-border accent-[var(--primary)]"
                           />
-                          <span className={item.isPacked ? 'text-sm text-muted-foreground line-through' : 'text-sm'}>{item.item}</span>
+                          <span className="flex flex-col">
+                            <span className={item.isPacked ? 'text-sm text-muted-foreground line-through' : 'text-sm'}>{item.item}</span>
+                            {item.reason && <span className="text-xs italic text-muted-foreground">{item.reason}</span>}
+                          </span>
                         </label>
                         <Button
                           variant="ghost"

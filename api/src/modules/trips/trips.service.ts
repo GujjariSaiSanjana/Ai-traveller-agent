@@ -52,6 +52,9 @@ export async function regenerateTripDay(userId: string, tripId: string, dayNumbe
   if (idx === -1) throw new AppError(404, 'Day not found');
 
   const summary = (trip.weather as any)?.summary as string | undefined;
+  const current = (nested.itinerary[idx]?.activities ?? []).map((a: any) => ({
+    name: a.name, description: a.description, estimatedCostUSD: a.estimatedCostUSD, timeOfDay: a.timeOfDay,
+  }));
   const fresh = await regenerateDay({
     destination: trip.destination,
     durationDays: trip.durationDays,
@@ -60,6 +63,7 @@ export async function regenerateTripDay(userId: string, tripId: string, dayNumbe
     season: trip.season ?? 'Summer',
     dayNumber,
     instruction,
+    current,
     ...(summary ? { weather: summary } : {}),
   });
 

@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Tabs } from '@/components/ui/tabs';
 import { Container } from '@/components/ui/container';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogFooter } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const TIME_LABEL: Record<string, string> = { Morning: 'AM', Afternoon: 'PM', Evening: 'EVE' };
@@ -21,6 +22,11 @@ export default function TripDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('itinerary');
   const [saving, setSaving] = useState(false);
+
+  // Dialog state (replaces native prompt/alert)
+  const [regenDay, setRegenDay] = useState<number | null>(null);
+  const [regenText, setRegenText] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Editing Activities State
   const [editingActivityKey, setEditingActivityKey] = useState<string | null>(null);
@@ -191,16 +197,20 @@ export default function TripDetailPage() {
   }
 
   // Regenerate a whole day via the LLM (server returns the updated trip with budget re-synced).
-  async function regenerateDayHandler(dayNum: number) {
-    if (!trip) return;
-    const instruction = window.prompt(`Regenerate Day ${dayNum} — describe what you want (e.g. "more outdoor activities, less shopping")`);
-    if (!instruction || !instruction.trim()) return;
+  function regenerateDayHandler(dayNum: number) {
+    setRegenText('');
+    setRegenDay(dayNum);
+  }
+  async function doRegenerate() {
+    if (regenDay == null || !regenText.trim()) return;
     setSaving(true);
     try {
-      const updated = await tripsApi.regenerateDay(id, dayNum, instruction.trim());
+      const updated = await tripsApi.regenerateDay(id, regenDay, regenText.trim());
       setTrip(updated);
+      setRegenDay(null);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to regenerate day');
+      setRegenDay(null);
+      setErrorMsg(e instanceof Error ? e.message : 'Failed to regenerate day');
     } finally {
       setSaving(false);
     }
@@ -815,6 +825,35 @@ export default function TripDetailPage() {
         )}
 
 
+        {/* Regenerate-day dialog */}
+        <Dialog
+          open={regenDay !== null}
+          onClose={() => { if (!saving) setRegenDay(null); }}
+          title={`Regenerate Day ${regenDay ?? ''}`}
+          description="Tell the AI what to focus on for this day."
+        >
+          <textarea
+            value={regenText}
+            onChange={(e) => setRegenText(e.target.value)}
+            placeholder="e.g. more outdoor activities, less shopping"
+            rows={3}
+            autoFocus
+            className="mt-4 w-full rounded-xl border border-input bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setRegenDay(null)} disabled={saving}>Cancel</Button>
+            <Button size="sm" onClick={doRegenerate} disabled={saving || !regenText.trim()}>
+              {saving ? <><Spinner /> Regenerating…</> : 'Regenerate'}
+            </Button>
+          </DialogFooter>
+        </Dialog>
+
+        {/* Error dialog */}
+        <Dialog open={!!errorMsg} onClose={() => setErrorMsg('')} title="Something went wrong" description={errorMsg}>
+          <DialogFooter>
+            <Button size="sm" onClick={() => setErrorMsg('')}>OK</Button>
+          </DialogFooter>
+        </Dialog>
       </Container>
     </div>
   );

@@ -42,7 +42,9 @@ export async function generateItinerary(input: GenInput): Promise<GeneratedTrip>
   throw new AppError(502, 'AI failed to produce a valid itinerary. Please try again.');
 }
 
-export async function regenerateDay(input: GenInput & { dayNumber: number; instruction: string }): Promise<GeneratedDay> {
+export async function regenerateDay(
+  input: GenInput & { dayNumber: number; instruction: string; current?: { name: string; description?: string; estimatedCostUSD?: number; timeOfDay?: string }[] },
+): Promise<GeneratedDay> {
   let lastErr = '';
   for (let attempt = 0; attempt < 2; attempt++) {
     const prompt = buildDayPrompt(input) + (lastErr ? `\n\nPrevious JSON failed validation: ${lastErr}. Fix it.` : '');

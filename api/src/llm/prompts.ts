@@ -54,11 +54,29 @@ For EVERY item, set "reason" to a short phrase referencing the weather or a spec
 (e.g. "for the ~70% rain chance", "for the Mt Fuji hike on Day 2"). Place each item in the correct category.`;
 }
 
-export function buildDayPrompt(input: BaseInput & { dayNumber: number; instruction: string }): string {
-  return `Regenerate ONLY day ${input.dayNumber} of a ${input.durationDays}-day trip to ${input.destination}.
+interface DayActivity {
+  name: string;
+  description?: string;
+  estimatedCostUSD?: number;
+  timeOfDay?: string;
+}
+
+export function buildDayPrompt(
+  input: BaseInput & { dayNumber: number; instruction: string; current?: DayActivity[] },
+): string {
+  const currentBlock =
+    input.current && input.current.length
+      ? `\nThe day CURRENTLY has these activities:\n${JSON.stringify(
+          input.current.map((a) => ({ name: a.name, description: a.description, estimatedCostUSD: a.estimatedCostUSD, timeOfDay: a.timeOfDay })),
+          null,
+          2,
+        )}\nApply the user's request to THIS list: add, remove, reorder, or replace activities exactly as asked, and KEEP every existing activity the request does not mention. Then return the FULL updated day.`
+      : '';
+
+  return `Update day ${input.dayNumber} of a ${input.durationDays}-day trip to ${input.destination}.
 Budget tier: ${input.budgetTier}. Interests: ${input.interests.join(', ') || 'general sightseeing'}.
 ${weatherLine(input)}
-User request for this day: "${input.instruction}".
+User request for this day: "${input.instruction}".${currentBlock}
 
 Return JSON for the single day only:
 {

@@ -6,6 +6,7 @@ import { User } from '../../models/User';
 import { setAuthCookies, clearAuthCookies } from '../../utils/jwt';
 import { requireAuth, type AuthedRequest } from '../../middleware/requireAuth';
 import { validate } from '../../middleware/validation';
+import { authLimiter } from '../../middleware/rateLimit';
 import { env } from '../../config/env';
 import { AppError } from '../../utils/AppError';
 
@@ -13,7 +14,7 @@ const router = Router();
 
 const RegisterSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   name: z.string().min(1),
 });
 
@@ -22,14 +23,15 @@ const LoginSchema = z.object({
   password: z.string(),
 });
 
-router.post('/register', validate(RegisterSchema), async (req, res, next) => {
+router.post('/register', authLimiter, validate(RegisterSchema), async (req, res, next) => {
   try {
     const { email, password, name } = req.body;
     const existing = await User.findOne({ email });
     if (existing) {
-      throw new AppError(400, 'Email already registered');
+      // Neutral message + rate limiting reduce account-enumeration signal.
+      throw new AppError(409, 'Could not complete registration');
     }
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
     const user = await User.create({ email, passwordHash, name });
     setAuthCookies(res, user._id.toString());
     res.status(201).json({ user: { id: user._id, email: user.email, name: user.name } });
@@ -38,7 +40,7 @@ router.post('/register', validate(RegisterSchema), async (req, res, next) => {
   }
 });
 
-router.post('/login', validate(LoginSchema), async (req, res, next) => {
+router.post('/login', authLimiter, validate(LoginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });

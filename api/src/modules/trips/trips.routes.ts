@@ -2,51 +2,52 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { Trip } from '../../models/Trip';
 import { generateItinerary } from '../../llm/itinerary.service';
-import { updateTrip } from './trips.service';
+import { updateTrip, regenerateTripDay } from './trips.service';
 import { requireAuth, type AuthedRequest } from '../../middleware/requireAuth';
 import { ownTrip } from '../../middleware/ownership';
 import { validate } from '../../middleware/validation';
+import { NestedItineraryZ, PackingItemZ } from '../../llm/schemas';
+import { getWeather } from '../../llm/weather';
 
 const router = Router();
-
-// Apply authentication to all trip routes
 router.use(requireAuth);
 
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
+
 const CreateTripSchema = z.object({
-  destination: z.string().min(1),
+  destination: z.string().min(1).max(120),
   durationDays: z.coerce.number().int().min(1).max(30),
-  budgetTier: z.string().min(1),
-  interests: z.array(z.string()).default([]),
-  season: z.string().min(1),
+  budgetTier: z.string().min(1).max(30),
+  interests: z.array(z.string().max(40)).max(20).default([]),
+  season: z.string().min(1).max(20).default('Summer'),
+  startDate: isoDate.optional(),
+  endDate: isoDate.optional(),
 });
 
-const UpdateTripSchema = z.object({
-  itinerary: z.any().optional(),
-  packingList: z.any().optional(),
-});
+const UpdateTripSchema = z
+  .object({
+    itinerary: NestedItineraryZ.optional(),
+    packingList: z.array(PackingItemZ).optional(),
+  })
+  .refine((b) => b.itinerary || b.packingList, { message: 'Nothing to update' });
 
-// Create a new trip
+const RegenerateDaySchema = z.object({ instruction: z.string().min(1).max(400) });
+
+// Create a trip (fetches real weather when dates given, then generates the itinerary).
 router.post('/', validate(CreateTripSchema), async (req: AuthedRequest, res, next) => {
   try {
-    const { destination, durationDays, budgetTier, interests, season } = req.body;
-    
-    // Call LLM service to generate itinerary details
+    const { destination, durationDays, budgetTier, interests, season, startDate, endDate } = req.body;
+    const weather = await getWeather(destination, startDate, endDate); // null on failure -> season fallback
     const generated = await generateItinerary({
-      destination,
-      durationDays,
-      budgetTier,
-      interests,
-      season,
+      destination, durationDays, budgetTier, interests, season,
+      ...(weather?.summary ? { weather: weather.summary } : {}),
     });
-    
-    // Save to DB
     const trip = await Trip.create({
       owner: req.user!.id,
-      destination,
-      durationDays,
-      budgetTier,
-      interests,
-      season,
+      destination, durationDays, budgetTier, interests, season,
+      ...(startDate ? { startDate } : {}),
+      ...(endDate ? { endDate } : {}),
+      ...(weather ? { weather } : {}),
       itinerary: {
         itinerary: generated.itinerary,
         hotels: generated.hotels,
@@ -54,42 +55,49 @@ router.post('/', validate(CreateTripSchema), async (req: AuthedRequest, res, nex
       },
       packingList: generated.packingList,
     });
-    
     res.status(201).json(trip);
   } catch (err) {
     next(err);
   }
 });
 
-// Get all trips for the authenticated user
+// List my trips
 router.get('/', async (req: AuthedRequest, res, next) => {
   try {
-    const trips = await Trip.find({ owner: req.user!.id }).sort({ createdAt: -1 });
-    res.json(trips);
+    res.json(await Trip.find({ owner: req.user!.id }).sort({ createdAt: -1 }));
   } catch (err) {
     next(err);
   }
 });
 
-// Get a specific trip
+// Get one (ownership-guarded)
 router.get('/:id', ownTrip, async (req: AuthedRequest, res) => {
   res.json((req as any).trip);
 });
 
-// Update a specific trip
+// Update itinerary edits / packing — budget recomputed server-side
 router.patch('/:id', ownTrip, validate(UpdateTripSchema), async (req: AuthedRequest, res, next) => {
   try {
-    const updated = await updateTrip(req.user!.id, req.params.id as string, req.body);
-    res.json(updated);
+    res.json(await updateTrip(req.user!.id, req.params.id as string, req.body));
   } catch (err) {
     next(err);
   }
 });
 
-// Delete a specific trip
+// Regenerate a specific day with the LLM
+router.post('/:id/days/:dayNumber/regenerate', ownTrip, validate(RegenerateDaySchema), async (req: AuthedRequest, res, next) => {
+  try {
+    const trip = await regenerateTripDay(req.user!.id, req.params.id as string, Number(req.params.dayNumber), req.body.instruction);
+    res.json(trip);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Delete (ownership-guarded)
 router.delete('/:id', ownTrip, async (req: AuthedRequest, res, next) => {
   try {
-    await Trip.deleteOne({ _id: req.params.id });
+    await Trip.deleteOne({ _id: req.params.id, owner: req.user!.id });
     res.json({ status: 'ok' });
   } catch (err) {
     next(err);
